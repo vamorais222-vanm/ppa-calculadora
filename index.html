@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora PPA</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PPA">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}[hidden]{display:none!important}</style>
+<style>
+/* Layout: uma coluna de telemóvel, barra de separadores fixa no topo, resultado primeiro, depois entradas, gráfico e tabela.
+   Cores: neutros quentes + azul (série 1) e laranja (série 2) da paleta de dataviz validada.
+   Tipo: sistema (SF Pro no iPhone); números proporcionais nos grandes, tabulares nas tabelas. */
+:root {
+  --page: #f4f4f1; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --hair: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+  --accent: #2a78d6; --on-accent: #ffffff;
+  --s1: #2a78d6; --s2: #eb6834; --tint2: rgba(235,104,52,.08);
+  --seg: #ebeae5; --seg-on: #fcfcfb; --shadow: 0 1px 2px rgba(0,0,0,.10), 0 0 0 .5px rgba(0,0,0,.06);
+  --good: #006300; --crit: #d03b3b; --crit-bg: rgba(208,59,59,.10); --warn: #8a5a00; --warn-bg: rgba(250,178,25,.18);
+  --font: system-ui, -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --hair: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+    --accent: #3987e5; --on-accent: #0b0b0b; --s1: #3987e5; --s2: #d95926; --tint2: rgba(217,89,38,.14);
+    --seg: #262625; --seg-on: #3a3a38; --shadow: 0 1px 2px rgba(0,0,0,.5);
+    --good: #0ca30c; --crit: #ec6a6a; --crit-bg: rgba(236,106,106,.14); --warn: #fab219; --warn-bg: rgba(250,178,25,.14);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+  --hair: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+  --accent: #3987e5; --on-accent: #0b0b0b; --s1: #3987e5; --s2: #d95926; --tint2: rgba(217,89,38,.14);
+  --seg: #262625; --seg-on: #3a3a38; --shadow: 0 1px 2px rgba(0,0,0,.5);
+  --good: #0ca30c; --crit: #ec6a6a; --crit-bg: rgba(236,106,106,.14); --warn: #fab219; --warn-bg: rgba(250,178,25,.14);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: var(--font); font-size: 15px; line-height: 1.4; background: var(--page); color: var(--ink);
+  padding-block: 4px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 560px; margin: 0 auto; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+
+/* cabeçalho + separadores */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 4px; }
+.top h1 { font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
+.top p { font-size: 12.5px; color: var(--ink2); }
+.pill { white-space: nowrap; flex: 0 0 auto; border: 1px solid var(--ring); background: var(--surface); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 550; color: var(--ink2); display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+.pill[aria-pressed="true"] { background: var(--ink); color: var(--page); border-color: var(--ink); }
+.pill svg { width: 15px; height: 15px; }
+.tabbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--page); display: flex; align-items: center; gap: 10px; padding: 8px 0 10px; border-bottom: 1px solid var(--hair); }
+.tabs { display: inline-flex; background: var(--seg); border-radius: 12px; padding: 3px; flex: 0 0 auto; }
+.tabs button { border: 0; background: transparent; padding: 8px 18px; min-height: 38px; border-radius: 10px; font-weight: 650; font-size: 15px; color: var(--ink2); }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow); }
+.live { margin-left: auto; text-align: right; line-height: 1.15; min-width: 0; }
+.live b { font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+.live span { display: block; font-size: 11.5px; color: var(--ink2); white-space: nowrap; }
+
+main { display: flex; flex-direction: column; gap: 14px; padding-top: 14px; }
+section[hidden] { display: none !important; }
+.view { display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 18px; padding: 16px; min-width: 0; }
+.card h2 { font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); }
+
+/* resultado */
+.eyebrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; color: var(--ink2); }
+.tag { font-size: 12px; font-weight: 600; border-radius: 999px; background: var(--seg); padding: 3px 9px; color: var(--ink2); white-space: nowrap; }
+.big { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.big b { font-size: 56px; line-height: 1; font-weight: 650; letter-spacing: -.035em; }
+.big span { font-size: 18px; color: var(--ink2); font-weight: 550; }
+.sub { margin-top: 8px; color: var(--ink2); font-size: 14px; }
+.sub strong { color: var(--ink); font-weight: 650; }
+.flag { margin-top: 10px; display: flex; gap: 8px; align-items: flex-start; border-radius: 10px; padding: 8px 10px; font-size: 13px; font-weight: 550; }
+.flag svg { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 1px; }
+.flag.crit { background: var(--crit-bg); color: var(--crit); }
+.flag.warn { background: var(--warn-bg); color: var(--warn); }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 14px; border-top: 1px solid var(--hair); }
+.kpi { padding: 12px 0 2px; min-width: 0; }
+.kpi:nth-child(odd) { padding-right: 12px; }
+.kpi:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--hair); }
+.kpi .l { display: block; font-size: 12.5px; color: var(--ink2); }
+.kpi .v { display: block; font-size: 22px; font-weight: 650; letter-spacing: -.015em; margin-top: 1px; overflow-wrap: anywhere; }
+.kpi .s { display: block; font-size: 12px; color: var(--ink2); margin-top: 1px; }
+
+/* entradas */
+.rows { margin-top: 4px; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 60px; padding: 8px 0; border-top: 1px solid var(--hair); }
+.rows > .row:first-child { border-top: 0; }
+.row[hidden] { display: none; }
+.row .lab { min-width: 0; }
+.row .lab label, .row .lab .t { display: block; font-size: 16px; font-weight: 520; line-height: 1.2; }
+.row .lab small { display: block; font-size: 12px; color: var(--ink2); margin-top: 1px; line-height: 1.25; }
+.ctl { display: flex; align-items: center; gap: 4px; }
+.step { width: 40px; height: 44px; border: 0; border-radius: 12px; background: var(--seg); font-size: 22px; line-height: 1; color: var(--ink); display: grid; place-items: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.step:active { background: var(--axis); }
+.fld { width: 92px; height: 44px; border-radius: 12px; border: 1px solid var(--hair); background: var(--page); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 4px; }
+.fld:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.fld input { width: 100%; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 17px; font-weight: 650; text-align: center; padding: 0; line-height: 1.15; outline: none; font-variant-numeric: tabular-nums; -webkit-appearance: none; appearance: none; border-radius: 0; }
+.fld .u { font-size: 10.5px; line-height: 1.1; color: var(--ink2); white-space: nowrap; }
+.stack { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--seg); border-radius: 12px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; min-height: 40px; padding: 6px 8px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--ink2); line-height: 1.15; }
+.seg button[aria-checked="true"] { background: var(--seg-on); color: var(--ink); box-shadow: var(--shadow); }
+.sw { width: 52px; height: 32px; border-radius: 999px; border: 0; background: var(--axis); position: relative; transition: background .15s; flex: 0 0 auto; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
+.sw[aria-checked="true"] { background: var(--accent); }
+.sw[aria-checked="true"]::after { transform: translateX(20px); }
+.note { font-size: 12.5px; color: var(--ink2); margin-top: 2px; }
+
+/* gráficos */
+.chead { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.chead h2 { flex: 1 1 auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink2); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.legend i.ln { height: 0; border-top: 3px solid; border-radius: 2px; width: 16px; vertical-align: 3px; }
+.chart { position: relative; margin-top: 8px; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font); }
+.tip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface); border: 1px solid var(--ring); box-shadow: 0 6px 20px rgba(0,0,0,.18); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; min-width: 140px; max-width: 220px; }
+.tip[hidden] { display: none; }
+.tip .th { font-weight: 650; margin-bottom: 4px; }
+.tip .tr { display: flex; align-items: center; gap: 7px; justify-content: space-between; margin-top: 2px; }
+.tip .tr b { font-size: 14px; font-weight: 650; }
+.tip .tr span { color: var(--ink2); display: inline-flex; align-items: center; gap: 6px; }
+.tip .tr i { display: inline-block; width: 12px; height: 0; border-top: 3px solid; border-radius: 2px; }
+.tip .tm { color: var(--ink2); margin-top: 5px; font-size: 11.5px; line-height: 1.3; }
+
+/* tabelas */
+.tbl { overflow-x: auto; margin: 10px -16px -16px; border-top: 1px solid var(--hair); border-radius: 0 0 18px 18px; -webkit-overflow-scrolling: touch; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--hair); background: var(--surface); }
+thead th { font-size: 11.5px; font-weight: 600; color: var(--ink2); white-space: normal; vertical-align: bottom; line-height: 1.2; min-width: 74px; background: var(--surface); position: sticky; top: 0; }
+th:first-child, td:first-child { position: sticky; left: 0; text-align: center; min-width: 46px; padding-left: 16px; z-index: 1; font-weight: 600; }
+tbody tr.post td { background-color: var(--surface); background-image: linear-gradient(var(--tint2), var(--tint2)); }
+tbody tr.hl td { font-weight: 650; }
+tfoot td { font-weight: 650; border-bottom: 0; }
+td.neg { color: var(--ink2); }
+details.card > summary { cursor: pointer; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::after { content: "+"; font-size: 20px; font-weight: 400; }
+details.card[open] > summary::after { content: "−"; }
+.btn { border: 1px solid var(--hair); background: var(--seg); border-radius: 12px; min-height: 44px; padding: 8px 14px; font-weight: 600; width: 100%; margin-top: 10px; }
+.how { margin-top: 12px; padding-left: 18px; font-size: 12.5px; color: var(--ink2); display: grid; gap: 5px; }
+.client .internal { display: none !important; }
+.foot { font-size: 12px; color: var(--ink2); text-align: center; padding: 6px 0; }
+@media (max-width: 360px) { .big b { font-size: 48px; } .fld { width: 82px; } .step { width: 36px; } }
+@media (prefers-reduced-motion: reduce) { .sw, .sw::after { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="top">
+    <div><h1>Calculadora PPA</h1><p>Estimativa rápida · 20 anos</p></div>
+    <button class="pill" id="clientBtn" type="button" aria-pressed="false" title="Esconde TIR, capex e margem">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="clientTxt">Modo cliente</span>
+    </button>
+  </header>
+
+  <div class="tabbar">
+    <div class="tabs" role="tablist" aria-label="Modelo">
+      <button type="button" role="tab" id="tab-ppa" data-tab="ppa" aria-selected="true">PPA</button>
+      <button type="button" role="tab" id="tab-epc" data-tab="epc" aria-selected="false">EPC</button>
+    </div>
+    <div class="live" aria-live="polite"><b id="liveV">—</b><span id="liveL"></span></div>
+  </div>
+
+  <main>
+    <!-- ============ PPA ============ -->
+    <section class="view" id="view-ppa" aria-labelledby="tab-ppa">
+      <div class="card" id="ppaHero">
+        <div class="eyebrow"><span id="ppaEyebrow">Tarifa PPA</span><span class="tag internal" id="ppaTag"></span></div>
+        <div class="big"><b id="ppaTariff">—</b><span>€/MWh</span></div>
+        <p class="sub" id="ppaSub"></p>
+        <div id="ppaFlags"></div>
+        <div class="kpis" id="ppaKpis"></div>
+      </div>
+
+      <div class="card">
+        <h2>Projeto</h2>
+        <div class="rows" data-rows="project" data-scope="p"></div>
+      </div>
+
+      <div class="card">
+        <h2>Contrato PPA</h2>
+        <div class="rows" data-rows="ppa" data-scope="p"></div>
+      </div>
+
+      <div class="card" id="ppaChartCard">
+        <div class="chead"><h2>Poupança do cliente</h2></div>
+        <div class="legend" id="ppaLegend"></div>
+        <div class="chart" id="chartSavings"></div>
+        <p class="note" id="ppaChartNote"></p>
+      </div>
+
+      <div class="card">
+        <h2>Tabela anual</h2>
+        <div class="tbl"><table id="ppaTable" aria-label="Poupança anual do cliente"></table></div>
+      </div>
+    </section>
+
+    <!-- ============ EPC ============ -->
+    <section class="view" id="view-epc" aria-labelledby="tab-epc" hidden>
+      <div class="card" id="epcHero">
+        <div class="eyebrow"><span>Payback descontado</span><span class="tag" id="epcTag"></span></div>
+        <div class="big"><b id="epcPayback">—</b><span id="epcPaybackU">anos</span></div>
+        <p class="sub" id="epcSub"></p>
+        <div id="epcFlags"></div>
+        <div class="kpis" id="epcKpis"></div>
+      </div>
+
+      <div class="card">
+        <h2>Projeto</h2>
+        <div class="rows" data-rows="project" data-scope="e"></div>
+      </div>
+
+      <div class="card internal">
+        <h2>Preço EPC</h2>
+        <div class="rows" data-rows="epc" data-scope="e"></div>
+      </div>
+
+      <div class="card" id="epcChartCard">
+        <div class="chead"><h2>Posição acumulada atualizada</h2></div>
+        <div class="legend" id="epcLegend"></div>
+        <div class="chart" id="chartEpc"></div>
+        <p class="note" id="epcChartNote"></p>
+      </div>
+
+      <div class="card">
+        <h2>Fluxos de caixa do cliente</h2>
+        <div class="tbl"><table id="epcTable" aria-label="Fluxos de caixa do EPC"></table></div>
+      </div>
+    </section>
+
+    <details class="card internal" id="adv">
+      <summary>Pressupostos</summary>
+      <div class="rows" data-rows="adv" data-scope="a"></div>
+      <button class="btn" type="button" id="resetBtn">Repor valores iniciais</button>
+      <ol class="how">
+        <li>Produção do ano 1 = kWp × produtividade; desce pela degradação anual (0,75 %/ano por defeito).</li>
+        <li>Preço da rede, O&amp;M e seguro sobem com a inflação; a tarifa PPA mantém-se fixa durante o contrato.</li>
+        <li>Tarifa = a que dá ao investidor a TIR alvo, líquida de IRC, com amortização linear do capex ao longo do contrato (lógica do modelo Excel).</li>
+        <li>Pago produzido: o cliente paga toda a energia e fica com a venda do excedente. Pago consumido: paga só o que consome e o excedente é do investidor.</li>
+        <li>Sem injeção, o excedente é limitado e só se produz o que se consome. No fim do PPA o sistema passa para o cliente, que paga O&amp;M e seguro.</li>
+      </ol>
+    </details>
+    <p class="foot">Estimativa indicativa. Valores sem IVA.</p>
+  </main>
+</div>
+
+<script>
+/* Motor de cálculo PPA / EPC.
+   Lógica espelhada no modelo Excel "Budget 3.0 Autoconsumption Financial Model":
+   - produção ano 1 = kWp x produtividade, a decrescer com a degradação anual
+   - CF do investidor = receita PPA (+ venda de excedente) - O&M - seguro, com IRC
+     calculado sobre (resultado operacional - amortização linear do capex ao longo do contrato)
+   - a tarifa que cumpre uma TIR alvo é exata, porque o NPV do investidor é linear na tarifa.
+   Preços da rede e custos de O&M/seguro sobem com a inflação (ano 1 ao preço atual). */
+var PPAEngine = (function () {
+  var LIFE = 20;
+
+  var DEFAULTS = {
+    kwp: 325, capex: 0.54, yield: 1225, grid: 180, sc: 80, infl: 2, disc: 5.5,
+    ppaType: 'produced',   // 'produced' (pago produzido) | 'consumed' (pago consumido, AC)
+    years: 15, inj: true, sale: 50,
+    solveMode: 'irr',      // 'irr' (TIR alvo -> tarifa) | 'tariff' (tarifa -> TIR)
+    targetIrr: 10, tariffFixed: 85,
+    margin: 10, marginBase: 'sale', // 'sale' (sobre preço de venda) | 'cost' (sobre custo)
+    deg: 0.75, om: 6, ins: 1.5, tax: 16, epcOpex: true, saleIdx: false
+  };
+
+  function num(v, d) { v = Number(v); return isFinite(v) ? v : d; }
+
+  function sanitize(p) {
+    var q = {}, k;
+    for (k in DEFAULTS) q[k] = (p && p[k] !== undefined) ? p[k] : DEFAULTS[k];
+    q.kwp = Math.max(0, num(q.kwp, DEFAULTS.kwp));
+    q.capex = Math.max(0, num(q.capex, DEFAULTS.capex));
+    q.yield = Math.max(0, num(q.yield, DEFAULTS.yield));
+    q.grid = Math.max(0, num(q.grid, DEFAULTS.grid));
+    q.sc = Math.min(100, Math.max(0, num(q.sc, DEFAULTS.sc)));
+    q.infl = num(q.infl, 0);
+    q.disc = Math.max(-50, num(q.disc, 0));
+    q.years = Math.min(LIFE, Math.max(1, Math.round(num(q.years, 15))));
+    q.sale = Math.max(0, num(q.sale, 0));
+    q.targetIrr = num(q.targetIrr, 10);
+    q.tariffFixed = Math.max(0, num(q.tariffFixed, 0));
+    q.margin = Math.min(90, Math.max(0, num(q.margin, 0)));
+    q.deg = Math.min(50, Math.max(0, num(q.deg, 0)));
+    q.om = Math.max(0, num(q.om, 0));
+    q.ins = Math.max(0, num(q.ins, 0));
+    q.tax = Math.min(100, Math.max(0, num(q.tax, 0)));
+    q.inj = !!q.inj; q.epcOpex = !!q.epcOpex; q.saleIdx = !!q.saleIdx;
+    return q;
+  }
+
+  function npv(rate, cfs) { // cfs[0] no ano 0
+    var s = 0, f = 1, r = 1 + rate;
+    for (var t = 0; t < cfs.length; t++) { s += cfs[t] / f; f *= r; }
+    return s;
+  }
+
+  function irr(cfs) {
+    var lo = -0.95, hi = 3, flo = npv(lo, cfs), fhi = npv(hi, cfs);
+    if (!isFinite(flo) || !isFinite(fhi) || flo * fhi > 0) return NaN;
+    for (var i = 0; i < 200; i++) {
+      var mid = (lo + hi) / 2, fm = npv(mid, cfs);
+      if (flo * fm <= 0) { hi = mid; fhi = fm; } else { lo = mid; flo = fm; }
+      if (hi - lo < 1e-12) break;
+    }
+    return (lo + hi) / 2;
+  }
+
+  // payback (anos) por interpolação linear no cumulativo; cum[0] = ano 0
+  function payback(cum) {
+    if (!(cum[0] < 0)) return cum[0] >= 0 ? 0 : null;
+    for (var t = 1; t < cum.length; t++) {
+      if (cum[t] >= 0) return (t - 1) + (-cum[t - 1]) / (cum[t] - cum[t - 1]);
+    }
+    return null;
+  }
+
+  // Série física e de preços para os 20 anos
+  function yearsBase(p) {
+    var sc = p.sc / 100, i = p.infl / 100, d = p.deg / 100, out = [];
+    for (var t = 1; t <= LIFE; t++) {
+      var prod = p.kwp * p.yield * Math.pow(1 - d, t - 1);
+      var consumed = prod * sc;
+      var surplus = p.inj ? prod - consumed : 0;
+      var generated = p.inj ? prod : consumed;           // sem injeção o excedente é limitado
+      var g = Math.pow(1 + i, t - 1);
+      out.push({
+        t: t, prod: prod, consumed: consumed, surplus: surplus, generated: generated,
+        grid: p.grid * g,
+        sale: p.sale * (p.saleIdx ? g : 1),
+        avoided: consumed * p.grid * g / 1000,
+        saleRev: surplus * p.sale * (p.saleIdx ? g : 1) / 1000,
+        om: p.om * p.kwp * g,
+        ins: p.ins * p.kwp * g
+      });
+    }
+    return out;
+  }
+
+  // Fluxos do investidor para uma tarifa T (€/MWh)
+  function investorFlows(p, Y, T) {
+    var N = p.years, capex = p.kwp * 1000 * p.capex, amort = capex / N;
+    var cf = [-capex], rows = [];
+    for (var t = 1; t <= N; t++) {
+      var y = Y[t - 1];
+      var paidE = p.ppaType === 'produced' ? y.generated : y.consumed;
+      var ppaRev = T * paidE / 1000;
+      var saleInv = p.ppaType === 'consumed' ? y.saleRev : 0;
+      var ebitda = ppaRev + saleInv - y.om - y.ins;
+      var tax = p.tax / 100 * (ebitda - amort);
+      cf.push(ebitda - tax);
+      rows.push({ t: t, ppaRev: ppaRev, saleInv: saleInv, opex: y.om + y.ins, ebitda: ebitda, tax: tax, cf: cf[t] });
+    }
+    return { cf: cf, rows: rows, capex: capex };
+  }
+
+  function solveTariff(p, Y, rate) {
+    var f0 = investorFlows(p, Y, 0).cf, f1 = investorFlows(p, Y, 1).cf;
+    var A = npv(rate, f0), B = npv(rate, f1) - A;
+    return B > 1e-12 ? -A / B : NaN;
+  }
+
+  function computePPA(p, Y) {
+    var N = p.years, disc = p.disc / 100;
+    var tariffRaw, T;
+    if (p.solveMode === 'irr') { tariffRaw = solveTariff(p, Y, p.targetIrr / 100); T = isFinite(tariffRaw) ? Math.max(0, tariffRaw) : 0; }
+    else { tariffRaw = p.tariffFixed; T = p.tariffFixed; }
+    var inv = investorFlows(p, Y, T);
+    var investorIrr = irr(inv.cf);
+
+    var rows = [], cum = 0, cumArr = [0], dcum = 0, dcumArr = [0], cumPPA = 0;
+    for (var t = 1; t <= LIFE; t++) {
+      var y = Y[t - 1], inPPA = t <= N, row = { t: t, inPPA: inPPA, prod: y.prod, grid: y.grid, tariff: inPPA ? T : 0 };
+      var paidE = p.ppaType === 'produced' ? y.generated : y.consumed;
+      row.avoided = y.avoided;
+      if (inPPA) {
+        row.payment = T * paidE / 1000;
+        row.saleRev = p.ppaType === 'produced' ? y.saleRev : 0;   // no PPA AC o excedente é do investidor
+        row.opex = 0;
+      } else {
+        row.payment = 0;
+        row.saleRev = y.saleRev;
+        row.opex = y.om + y.ins;                                   // cliente fica com o sistema e o O&M
+      }
+      row.saving = row.avoided + row.saleRev - row.payment - row.opex;
+      cum += row.saving; row.cum = cum; cumArr.push(cum);
+      dcum += row.saving / Math.pow(1 + disc, t); dcumArr.push(dcum);
+      if (inPPA) cumPPA = cum;
+      rows.push(row);
+    }
+    // custo efetivo por MWh consumido no ano 1 (comparável ao preço da rede)
+    var y1 = Y[0], r1 = rows[0];
+    var effCost = y1.consumed > 0 ? (r1.payment - r1.saleRev) / y1.consumed * 1000 : NaN;
+    return {
+      tariff: T, tariffRaw: tariffRaw, investorIrr: investorIrr, capex: inv.capex, investorRows: inv.rows,
+      rows: rows, cumArr: cumArr, dcumArr: dcumArr,
+      saving1: rows[0].saving, cumPPA: cumPPA, cum20: cum, npvSavings: dcum,
+      effCost: effCost, effDiscount: (isFinite(effCost) && y1.consumed > 0 && p.grid > 0) ? 1 - effCost / p.grid : NaN,
+      totalPayments: rows.reduce(function (s, r) { return s + r.payment; }, 0)
+    };
+  }
+
+  function computeEPC(p, Y, ppa) {
+    var disc = p.disc / 100, m = p.margin / 100;
+    var cost = p.kwp * 1000 * p.capex;
+    var price = p.marginBase === 'sale' ? cost / (1 - m) : cost * (1 + m);
+    var cf = [-price], dcf = [-price], cum = [-price], dcum = [-price], rows = [];
+    for (var t = 1; t <= LIFE; t++) {
+      var y = Y[t - 1], opex = p.epcOpex ? (y.om + y.ins) : 0;
+      var c = y.avoided + y.saleRev - opex;
+      var d = c / Math.pow(1 + disc, t);
+      cf.push(c); dcf.push(d);
+      cum.push(cum[t - 1] + c); dcum.push(dcum[t - 1] + d);
+      rows.push({ t: t, prod: y.prod, avoided: y.avoided, saleRev: y.saleRev, opex: opex, cf: c, dcf: d, cum: cum[t], dcum: dcum[t] });
+    }
+    // diferença entre as posições descontadas EPC vs PPA (ano em que o EPC ultrapassa o PPA)
+    var cross = null;
+    for (var k = 1; k <= LIFE; k++) {
+      var a0 = dcum[k - 1] - ppa.dcumArr[k - 1], a1 = dcum[k] - ppa.dcumArr[k];
+      if (a0 < 0 && a1 >= 0) { cross = (k - 1) + (-a0) / (a1 - a0); break; }
+    }
+    if (dcum[0] - ppa.dcumArr[0] >= 0) cross = 0;
+    return {
+      cost: cost, price: price, marginEur: price - cost, pricePerWp: price / (p.kwp * 1000),
+      rows: rows, cf: cf, cum: cum, dcum: dcum,
+      paybackDisc: payback(dcum), paybackSimple: payback(cum),
+      npv: dcum[LIFE], irr: irr(cf), net20: cum[LIFE], saving1: rows[0].cf, cross: cross
+    };
+  }
+
+  function compute(input) {
+    var p = sanitize(input), Y = yearsBase(p);
+    var ppa = computePPA(p, Y), epc = computeEPC(p, Y, ppa);
+    return { p: p, Y: Y, ppa: ppa, epc: epc };
+  }
+
+  return { compute: compute, sanitize: sanitize, DEFAULTS: DEFAULTS, LIFE: LIFE, irr: irr, npv: npv, payback: payback };
+})();
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var E = PPAEngine, KEY = 'ppa-calc-v1', LIFE = E.LIFE;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- estado ---------- */
+  var S = { p: Object.assign({}, E.DEFAULTS), tab: 'ppa', client: false };
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved && saved.p) { S.p = Object.assign({}, E.DEFAULTS, saved.p); S.tab = saved.tab === 'epc' ? 'epc' : 'ppa'; S.client = !!saved.client; }
+  } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  /* ---------- formatação (pt-PT) ---------- */
+  var nfCache = {};
+  function nf(dec, group) {
+    var k = dec + '|' + group;
+    return nfCache[k] || (nfCache[k] = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 0, maximumFractionDigits: dec, useGrouping: group }));
+  }
+  function fmt(v, dec) { if (v === null || v === undefined || !isFinite(v)) return '—'; var s = nf(dec || 0, true).format(v); return s.replace(/^-/, '−'); }
+  var fxCache = {};
+  function fx(v, dec) { // casas decimais fixas
+    if (v === null || v === undefined || !isFinite(v)) return '—';
+    var f = fxCache[dec] || (fxCache[dec] = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: dec, maximumFractionDigits: dec }));
+    return f.format(v).replace(/^-/, '−');
+  }
+  function eur(v, dec) { return isFinite(v) ? fmt(v, dec || 0) + ' €' : '—'; }
+  function compact(v) {
+    var a = Math.abs(v);
+    if (a >= 1e6) return fmt(v / 1e6, 2) + ' M';
+    if (a >= 1e3) return fmt(v / 1e3, 1) + ' K';
+    return fmt(v, 0);
+  }
+  function years(v) { return v === null ? '> ' + LIFE : fmt(v, 1); }
+
+  /* ---------- campos ---------- */
+  var F = {
+    kwp:   { label: 'Potência', unit: 'kWp', step: 5, min: 1, max: 100000, dec: 2 },
+    capex: { label: 'Capex', unit: '€/Wp', step: 0.01, min: 0.05, max: 5, dec: 3, hint: 'custo do investimento', internal: true },
+    yield: { label: 'Produtividade', unit: 'kWh/kWp', step: 10, min: 300, max: 2500, dec: 0, hint: 'rendimento específico anual' },
+    grid:  { label: 'Preço da rede', unit: '€/MWh', step: 5, min: 0, max: 1000, dec: 2, hint: 'tarifa evitada, ano 1' },
+    sc:    { label: 'Autoconsumo', unit: '%', step: 1, min: 0, max: 100, dec: 1, hint: 'da energia produzida' },
+    infl:  { label: 'Inflação', unit: '%/ano', step: 0.25, min: -5, max: 25, dec: 2, hint: 'rede, O&M e seguro' },
+    disc:  { label: 'Taxa de atualização', unit: '%', step: 0.25, min: 0, max: 30, dec: 2 },
+    years: { label: 'Duração do contrato', unit: 'anos', step: 1, min: 5, max: 20, dec: 0 },
+    sale:  { label: 'Preço de venda do excedente', unit: '€/MWh', step: 5, min: 0, max: 500, dec: 1 },
+    targetIrr: { label: 'TIR alvo', unit: '%', step: 0.25, min: 0, max: 40, dec: 2, hint: 'do investidor, líquida de IRC', internal: true },
+    tariffFixed: { label: 'Tarifa PPA', unit: '€/MWh', step: 1, min: 0, max: 500, dec: 2 },
+    margin: { label: 'Margem do projeto', unit: '%', step: 1, min: 0, max: 60, dec: 1, hint: 'incluída no preço ao cliente' },
+    deg:   { label: 'Degradação anual', unit: '%/ano', step: 0.05, min: 0, max: 5, dec: 2 },
+    om:    { label: 'O&M', unit: '€/kWp·ano', step: 0.5, min: 0, max: 60, dec: 2 },
+    ins:   { label: 'Seguro', unit: '€/kWp·ano', step: 0.25, min: 0, max: 30, dec: 2 },
+    tax:   { label: 'IRC', unit: '%', step: 1, min: 0, max: 40, dec: 1, hint: '0 para TIR antes de impostos' }
+  };
+
+  var LAYOUT = {
+    project: ['kwp', 'capex', 'yield', 'grid', 'sc', 'infl', 'disc'],
+    ppa: [
+      { seg: 'ppaType', label: 'Tipo de PPA', opts: [['produced', 'Pago produzido'], ['consumed', 'Pago consumido (AC)']], hintFn: 'ppaTypeHint' },
+      'years',
+      { seg: 'inj', label: 'Injeção na rede', opts: [['1', 'Sim'], ['0', 'Não']], hintFn: 'injHint' },
+      'sale',
+      { seg: 'solveMode', label: 'Calcular', opts: [['irr', 'Tarifa a partir da TIR'], ['tariff', 'TIR a partir da tarifa']], internal: true },
+      'targetIrr', 'tariffFixed'
+    ],
+    epc: ['margin', { seg: 'marginBase', label: 'Margem calculada sobre', opts: [['sale', 'Preço de venda'], ['cost', 'Custo']] }],
+    adv: ['deg', 'om', 'ins', 'tax',
+      { sw: 'epcOpex', label: 'O&M e seguro no EPC', hint: 'pagos pelo cliente após a instalação' },
+      { sw: 'saleIdx', label: 'Venda do excedente indexada', hint: 'sobe com a inflação' }]
+  };
+  var WHEN = {
+    sale: function (p) { return p.inj; },
+    targetIrr: function (p) { return p.solveMode === 'irr'; },
+    tariffFixed: function (p) { return p.solveMode === 'tariff'; }
+  };
+
+  function rowHTML(item, scope) {
+    if (typeof item === 'string') {
+      var f = F[item], id = 'f-' + scope + '-' + item;
+      return '<div class="row' + (f.internal ? ' internal' : '') + '" data-row="' + item + '">' +
+        '<div class="lab"><label for="' + id + '">' + f.label + '</label>' + (f.hint ? '<small>' + f.hint + '</small>' : '') + '</div>' +
+        '<div class="ctl"><button class="step" type="button" data-key="' + item + '" data-dir="-1" aria-label="Diminuir ' + f.label + '">−</button>' +
+        '<div class="fld"><input id="' + id + '" data-key="' + item + '" inputmode="decimal" autocomplete="off" enterkeyhint="done"><span class="u">' + f.unit + '</span></div>' +
+        '<button class="step" type="button" data-key="' + item + '" data-dir="1" aria-label="Aumentar ' + f.label + '">+</button></div></div>';
+    }
+    if (item.seg) {
+      return '<div class="row stack' + (item.internal ? ' internal' : '') + '" data-row="' + item.seg + '">' +
+        '<div class="lab"><span class="t">' + item.label + '</span>' + (item.hintFn ? '<small data-hint="' + item.hintFn + '"></small>' : '') + '</div>' +
+        '<div class="seg" role="radiogroup" aria-label="' + item.label + '" data-seg="' + item.seg + '">' +
+        item.opts.map(function (o) { return '<button type="button" role="radio" aria-checked="false" data-v="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div></div>';
+    }
+    return '<div class="row" data-row="' + item.sw + '"><div class="lab"><span class="t">' + item.label + '</span><small>' + item.hint + '</small></div>' +
+      '<button class="sw" type="button" role="switch" aria-checked="false" aria-label="' + item.label + '" data-sw="' + item.sw + '"></button></div>';
+  }
+  document.querySelectorAll('[data-rows]').forEach(function (el) {
+    el.innerHTML = LAYOUT[el.dataset.rows].map(function (it) { return rowHTML(it, el.dataset.scope); }).join('');
+  });
+
+  function fmtInput(key, v) { return nf(F[key].dec, false).format(v); }
+  function parseIn(s) {
+    s = String(s).replace(/\s/g, '').replace(/ /g, '').replace(',', '.');
+    if (!/^-?\d*\.?\d*$/.test(s) || s === '' || s === '.' || s === '-') return NaN;
+    return parseFloat(s);
+  }
+  function clampKey(key, v) { var f = F[key]; return Math.min(f.max, Math.max(f.min, v)); }
+
+  /* entradas de texto */
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    if (!el.matches || !el.matches('input[data-key]')) return;
+    var v = parseIn(el.value);
+    if (isFinite(v)) { S.p[el.dataset.key] = v; schedule(el); }
+  });
+  document.addEventListener('focusin', function (e) { if (e.target.matches && e.target.matches('input[data-key]')) setTimeout(function () { try { e.target.select(); } catch (x) {} }, 0); });
+  document.addEventListener('focusout', function (e) {
+    var el = e.target;
+    if (!el.matches || !el.matches('input[data-key]')) return;
+    var k = el.dataset.key, v = parseIn(el.value);
+    S.p[k] = clampKey(k, isFinite(v) ? v : S.p[k]);
+    syncInputs(); schedule();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.matches && e.target.matches('input[data-key]')) e.target.blur(); });
+
+  /* botões + e − (com repetição ao manter premido) */
+  function stepValue(key, dir) {
+    var f = F[key], v = Number(S.p[key]);
+    S.p[key] = clampKey(key, Number(((isFinite(v) ? v : 0) + dir * f.step).toFixed(6)));
+    syncInputs(); schedule();
+  }
+  var holdT1, holdT2;
+  function stopHold() { clearTimeout(holdT1); clearInterval(holdT2); }
+  document.addEventListener('pointerdown', function (e) {
+    var b = e.target.closest && e.target.closest('button.step');
+    if (!b) return;
+    e.preventDefault();
+    var k = b.dataset.key, d = Number(b.dataset.dir);
+    if (document.activeElement && document.activeElement.blur && document.activeElement.matches('input')) document.activeElement.blur();
+    stepValue(k, d);
+    holdT1 = setTimeout(function () { holdT2 = setInterval(function () { stepValue(k, d); }, 85); }, 400);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave', 'blur'].forEach(function (ev) { document.addEventListener(ev, stopHold, true); });
+  document.addEventListener('keydown', function (e) {
+    var b = e.target.closest && e.target.closest('button.step');
+    if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); stepValue(b.dataset.key, Number(b.dataset.dir)); }
+  });
+
+  /* segmentados, interruptores, separadores */
+  document.addEventListener('click', function (e) {
+    var sb = e.target.closest && e.target.closest('.seg button');
+    if (sb) {
+      var key = sb.parentNode.dataset.seg, v = sb.dataset.v;
+      S.p[key] = key === 'inj' ? v === '1' : v;
+      syncInputs(); schedule(); return;
+    }
+    var sw = e.target.closest && e.target.closest('button.sw');
+    if (sw) { S.p[sw.dataset.sw] = !S.p[sw.dataset.sw]; syncInputs(); schedule(); return; }
+    var tb = e.target.closest && e.target.closest('[data-tab]');
+    if (tb) { S.tab = tb.dataset.tab; applyTab(); schedule(); window.scrollTo(0, 0); }
+  });
+  $('clientBtn').addEventListener('click', function () { S.client = !S.client; applyClient(); schedule(); });
+  $('resetBtn').addEventListener('click', function () { S.p = Object.assign({}, E.DEFAULTS); syncInputs(); schedule(); });
+
+  function applyTab() {
+    ['ppa', 'epc'].forEach(function (t) {
+      $('view-' + t).hidden = S.tab !== t;
+      $('tab-' + t).setAttribute('aria-selected', S.tab === t ? 'true' : 'false');
+    });
+  }
+  function applyClient() {
+    document.body.classList.toggle('client', S.client);
+    $('clientBtn').setAttribute('aria-pressed', S.client ? 'true' : 'false');
+    $('clientTxt').textContent = S.client ? 'Modo cliente ligado' : 'Modo cliente';
+  }
+
+  function syncInputs() {
+    var p = S.p, act = document.activeElement;
+    document.querySelectorAll('input[data-key]').forEach(function (el) {
+      if (el !== act) el.value = fmtInput(el.dataset.key, Number(p[el.dataset.key]));
+    });
+    document.querySelectorAll('.seg').forEach(function (g) {
+      var cur = g.dataset.seg === 'inj' ? (p.inj ? '1' : '0') : p[g.dataset.seg];
+      g.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-checked', b.dataset.v === cur ? 'true' : 'false'); });
+    });
+    document.querySelectorAll('button.sw').forEach(function (b) { b.setAttribute('aria-checked', p[b.dataset.sw] ? 'true' : 'false'); });
+    document.querySelectorAll('[data-row]').forEach(function (r) { var w = WHEN[r.dataset.row]; if (w) r.hidden = !w(p); });
+    document.querySelectorAll('[data-hint]').forEach(function (h) {
+      h.textContent = h.dataset.hint === 'ppaTypeHint'
+        ? (p.ppaType === 'produced' ? 'O cliente compra toda a energia produzida' : 'O cliente paga apenas a energia que consome')
+        : (p.inj
+          ? (p.ppaType === 'produced' ? 'O excedente é vendido e a receita fica com o cliente' : 'O excedente é vendido pelo investidor e baixa a tarifa')
+          : 'Excedente limitado: só se produz o que se consome');
+    });
+  }
+
+  /* ---------- cálculo + render ---------- */
+  var raf = 0, R = null;
+  function schedule() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; update(); }); }
+
+  function kpi(l, v, s, internal) {
+    return '<div class="kpi' + (internal ? ' internal' : '') + '"><span class="l">' + l + '</span><span class="v">' + v + '</span>' + (s ? '<span class="s">' + s + '</span>' : '') + '</div>';
+  }
+  var ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/></svg>';
+  function flag(kind, text) { return '<div class="flag ' + kind + '">' + ICON + '<span>' + text + '</span></div>'; }
+
+  function update() {
+    R = E.compute(S.p);
+    var p = R.p, a = R.ppa, ep = R.epc;
+    /* barra fixa */
+    if (S.tab === 'ppa') { $('liveV').textContent = isFinite(a.tariff) ? fx(a.tariff, 1) + ' €/MWh' : '—'; $('liveL').textContent = 'tarifa PPA'; }
+    else { $('liveV').textContent = ep.paybackDisc === null ? '> ' + LIFE + ' anos' : fx(ep.paybackDisc, 1) + ' anos'; $('liveL').textContent = 'payback descontado'; }
+
+    if (S.tab === 'ppa') renderPPA(p, a); else renderEPC(p, ep, a);
+    save();
+  }
+
+  function renderPPA(p, a) {
+    var isP = p.ppaType === 'produced', N = p.years;
+    $('ppaEyebrow').textContent = isP ? 'Tarifa PPA · pago produzido' : 'Tarifa PPA · pago consumido (AC)';
+    $('ppaTag').textContent = p.solveMode === 'irr' ? 'TIR alvo ' + fmt(p.targetIrr, 2) + ' %' : 'Tarifa fixa';
+    $('ppaTariff').textContent = fx(a.tariff, 1);
+
+    var disc = a.effDiscount, parts = [];
+    if (isFinite(disc)) parts.push('<strong>' + fmt(Math.abs(disc) * 100, 0) + ' % ' + (disc >= 0 ? 'abaixo' : 'acima') + '</strong> do preço da rede no ano 1');
+    if (isFinite(a.effCost) && Math.abs(a.effCost - a.tariff) > 0.05) parts.push('custo efetivo de ' + fmt(a.effCost, 1) + ' €/MWh consumido');
+    $('ppaSub').innerHTML = parts.join(' · ');
+
+    var fl = '';
+    if (!isFinite(a.tariffRaw)) fl += flag('crit', 'Sem energia faturável com estes dados.');
+    else if (p.solveMode === 'irr' && a.tariffRaw < 0) fl += flag('warn', 'A venda do excedente já cumpre a TIR alvo: tarifa limitada a 0.');
+    if (a.saving1 <= 0) fl += flag('crit', 'Sem poupança no ano 1: a tarifa está acima do custo evitado.');
+    if (p.solveMode === 'tariff' && !isFinite(a.investorIrr)) fl += flag('warn', 'Com esta tarifa o investidor não recupera o investimento.');
+    $('ppaFlags').innerHTML = fl;
+
+    $('ppaKpis').innerHTML =
+      kpi('Poupança no ano 1', eur(a.saving1), isFinite(R.Y[0].avoided) && R.Y[0].avoided > 0 ? fmt(a.saving1 / R.Y[0].avoided * 100, 0) + ' % da fatura evitada' : '') +
+      kpi('Acumulada no PPA', eur(a.cumPPA), N + (N === 1 ? ' ano' : ' anos')) +
+      kpi('Acumulada em ' + LIFE + ' anos', eur(a.cum20), N < LIFE ? 'depois do PPA o sistema é do cliente' : '') +
+      kpi('Valor atual das poupanças', eur(a.npvSavings), 'a ' + fmt(p.disc, 2) + ' %') +
+      kpi('TIR do investidor', isFinite(a.investorIrr) ? fx(a.investorIrr * 100, 2) + ' %' : '—', 'líquida de IRC', true) +
+      kpi('Investimento', eur(a.capex), fx(p.capex, 3) + ' €/Wp', true);
+
+    renderPPAChart(p, a);
+    renderPPATable(p, a);
+  }
+
+  function renderEPC(p, ep, a) {
+    var pb = ep.paybackDisc;
+    $('epcPayback').textContent = pb === null ? '> ' + LIFE : fx(pb, 1);
+    $('epcPaybackU').textContent = 'anos';
+    $('epcTag').textContent = 'atualizado a ' + fmt(p.disc, 2) + ' %';
+    $('epcSub').innerHTML = 'Investimento do cliente de <strong>' + eur(ep.price) + '</strong> (' + fx(ep.pricePerWp, 3) + ' €/Wp)';
+    var fl = '';
+    if (pb === null) fl += flag('crit', 'O investimento não é recuperado em ' + LIFE + ' anos a esta taxa de atualização.');
+    $('epcFlags').innerHTML = fl;
+    $('epcKpis').innerHTML =
+      kpi('Payback simples', ep.paybackSimple === null ? '> ' + LIFE + ' anos' : fx(ep.paybackSimple, 1) + ' anos', 'sem atualização') +
+      kpi('Poupança líquida no ano 1', eur(ep.saving1), p.epcOpex ? 'depois de O&M e seguro' : '') +
+      kpi('Valor atual líquido', eur(ep.npv), LIFE + ' anos, a ' + fmt(p.disc, 2) + ' %') +
+      kpi('TIR do cliente', isFinite(ep.irr) ? fx(ep.irr * 100, 1) + ' %' : '—', LIFE + ' anos, sem atualização') +
+      kpi('EPC vs PPA', ep.cross === null ? 'PPA melhor' : (ep.cross <= 0 ? 'EPC melhor' : 'Ano ' + fmt(Math.ceil(ep.cross), 0)), ep.cross === null ? 'em posição atualizada, ' + LIFE + ' anos' : (ep.cross <= 0 ? '' : 'EPC ultrapassa o PPA')) +
+      kpi('Lucro líquido em ' + LIFE + ' anos', eur(ep.net20), 'sem atualização') +
+      kpi('Margem do projeto', eur(ep.marginEur), fmt(ep.marginEur / ep.price * 100, 1) + ' % do preço', true) +
+      kpi('Custo (capex)', eur(ep.cost), fx(p.capex, 3) + ' €/Wp', true);
+    renderEPCChart(p, ep, a);
+    renderEPCTable(p, ep);
+  }
+
+  /* ---------- tabelas ---------- */
+  function renderPPATable(p, a) {
+    var N = p.years, showSale = a.rows.some(function (r) { return r.saleRev > 0; }), showOpex = N < LIFE;
+    var h = '<thead><tr><th>Ano</th><th>Preço da rede<br>€/MWh</th><th>Tarifa PPA<br>€/MWh</th><th>Custo evitado</th><th>Pagamento PPA</th>' +
+      (showSale ? '<th>Venda de excedente</th>' : '') + (showOpex ? '<th>O&amp;M e seguro</th>' : '') + '<th>Poupança</th><th>Acumulada</th></tr></thead><tbody>';
+    var tot = { av: 0, pay: 0, sale: 0, ox: 0, sv: 0 };
+    a.rows.forEach(function (r) {
+      tot.av += r.avoided; tot.pay += r.payment; tot.sale += r.saleRev; tot.ox += r.opex; tot.sv += r.saving;
+      h += '<tr class="' + (r.inPPA ? '' : 'post') + (r.t === N ? ' hl' : '') + '"><td>' + r.t + '</td><td>' + fx(r.grid, 1) + '</td><td>' + (r.inPPA ? fx(r.tariff, 1) : '—') + '</td><td>' + fmt(r.avoided, 0) +
+        '</td><td class="neg">' + (r.inPPA ? fmt(-r.payment, 0) : '—') + '</td>' +
+        (showSale ? '<td>' + (r.saleRev > 0 ? fmt(r.saleRev, 0) : '—') + '</td>' : '') +
+        (showOpex ? '<td class="neg">' + (r.opex > 0 ? fmt(-r.opex, 0) : '—') + '</td>' : '') +
+        '<td><b>' + fmt(r.saving, 0) + '</b></td><td>' + fmt(r.cum, 0) + '</td></tr>';
+    });
+    h += '</tbody><tfoot><tr><td>Σ</td><td></td><td></td><td>' + fmt(tot.av, 0) + '</td><td class="neg">' + fmt(-tot.pay, 0) + '</td>' +
+      (showSale ? '<td>' + fmt(tot.sale, 0) + '</td>' : '') + (showOpex ? '<td class="neg">' + fmt(-tot.ox, 0) + '</td>' : '') +
+      '<td>' + fmt(tot.sv, 0) + '</td><td></td></tr></tfoot>';
+    $('ppaTable').innerHTML = h;
+  }
+  function renderEPCTable(p, ep) {
+    var h = '<thead><tr><th>Ano</th><th>Produção<br>MWh</th><th>Poupança líquida</th><th>Fluxo atualizado</th><th>Acumulado atualizado</th><th>Acumulado simples</th></tr></thead><tbody>';
+    var pbY = ep.paybackDisc === null ? -1 : Math.ceil(ep.paybackDisc);
+    h += '<tr><td>0</td><td>—</td><td>' + fmt(-ep.price, 0) + '</td><td>' + fmt(-ep.price, 0) + '</td><td>' + fmt(ep.dcum[0], 0) + '</td><td>' + fmt(ep.cum[0], 0) + '</td></tr>';
+    ep.rows.forEach(function (r) {
+      h += '<tr class="' + (r.t === pbY ? 'hl' : '') + '"><td>' + r.t + '</td><td>' + fmt(r.prod / 1000, 1) + '</td><td>' + fmt(r.cf, 0) + '</td><td>' + fmt(r.dcf, 0) + '</td><td><b>' + fmt(r.dcum, 0) + '</b></td><td>' + fmt(r.cum, 0) + '</td></tr>';
+    });
+    $('epcTable').innerHTML = h + '</tbody>';
+  }
+
+  /* ---------- gráficos (SVG à mão, uma só escala por painel) ---------- */
+  var NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs, parent) {
+    var el = document.createElementNS(NS, tag), k;
+    for (k in attrs) { if (k === 'text') el.textContent = attrs[k]; else if (k === 'style') el.setAttribute('style', attrs[k]); else el.setAttribute(k, attrs[k]); }
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+  function niceTicks(min, max, n) {
+    if (max <= min) max = min + 1;
+    var raw = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), nr = raw / mag;
+    var step = (nr <= 1 ? 1 : nr <= 2 ? 2 : nr <= 2.5 ? 2.5 : nr <= 5 ? 5 : 10) * mag;
+    var lo = Math.floor(min / step + 1e-9) * step, hi = Math.ceil(max / step - 1e-9) * step, t = [];
+    for (var v = lo; v <= hi + step * 1e-6; v += step) t.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return { lo: lo, hi: hi, ticks: t };
+  }
+  function roundTop(x, y, w, h, r) { // coluna a crescer de y (base) para cima/baixo, extremo de dados arredondado
+    var up = h >= 0, hh = Math.abs(h), rr = Math.min(r, w / 2, hh);
+    if (hh < 0.5) return 'M' + x + ' ' + y + 'h' + w + 'v0.5h-' + w + 'z';
+    if (up) { var t = y - hh; return 'M' + x + ' ' + y + 'V' + (t + rr) + 'Q' + x + ' ' + t + ' ' + (x + rr) + ' ' + t + 'H' + (x + w - rr) + 'Q' + (x + w) + ' ' + t + ' ' + (x + w) + ' ' + (t + rr) + 'V' + y + 'z'; }
+    var b = y + hh; return 'M' + x + ' ' + y + 'V' + (b - rr) + 'Q' + x + ' ' + b + ' ' + (x + rr) + ' ' + b + 'H' + (x + w - rr) + 'Q' + (x + w) + ' ' + b + ' ' + (x + w) + ' ' + (b - rr) + 'V' + y + 'z';
+  }
+  function makeTip(host) {
+    var t = host.querySelector('.tip');
+    if (!t) { t = document.createElement('div'); t.className = 'tip'; t.hidden = true; host.appendChild(t); }
+    return t;
+  }
+  function tipRow(label, value, color) {
+    var r = document.createElement('div'); r.className = 'tr';
+    var s = document.createElement('span');
+    if (color) { var i = document.createElement('i'); i.style.borderTopColor = color; s.appendChild(i); }
+    s.appendChild(document.createTextNode(label));
+    var b = document.createElement('b'); b.textContent = value;
+    r.appendChild(s); r.appendChild(b); return r;
+  }
+  function placeTip(tip, host, x, W) {
+    tip.hidden = false;
+    var w = tip.offsetWidth, left = x < W / 2 ? x + 14 : x - 14 - w;
+    tip.style.left = Math.max(0, Math.min(W - w, left)) + 'px';
+    tip.style.top = '4px';
+  }
+  var lastTouchHost = null;
+  document.addEventListener('pointerdown', function (e) {
+    if (lastTouchHost && !lastTouchHost.contains(e.target)) { var t = lastTouchHost.querySelector('.tip'); if (t) t.hidden = true; lastTouchHost = null; }
+  });
+
+  /* Gráfico 1: poupança anual (colunas) e acumulada (linha), dois painéis a partilhar o eixo dos anos */
+  function renderPPAChart(p, a) {
+    var host = $('chartSavings'), N = p.years, rows = a.rows;
+    var W = Math.max(290, host.clientWidth || 340);
+    var old = host.querySelector('svg'); if (old) old.remove();
+    var m = { l: 46, r: 14 }, plotW = W - m.l - m.r, band = plotW / LIFE;
+    var T1 = 22, h1 = 104, T2 = T1 + h1 + 44, h2 = 142, H = T2 + h2 + 26;
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Poupança anual e acumulada do cliente ao longo de ' + LIFE + ' anos. Detalhe na tabela abaixo.' });
+    host.insertBefore(svg, host.firstChild);
+    var mut = 'fill:var(--muted)', ink2 = 'fill:var(--ink2)';
+
+    // painel 1 - colunas
+    var vals = rows.map(function (r) { return r.saving; });
+    var s1 = niceTicks(Math.min(0, Math.min.apply(null, vals)), Math.max.apply(null, vals) * 1.18, 3);
+    var y1 = function (v) { return T1 + h1 - (v - s1.lo) / (s1.hi - s1.lo) * h1; };
+    sv('text', { x: m.l, y: T1 - 8, text: 'Poupança anual (€)', style: 'font-size:12px;font-weight:600;' + ink2 }, svg);
+    s1.ticks.forEach(function (v) {
+      sv('line', { x1: m.l, x2: W - m.r, y1: y1(v), y2: y1(v), style: 'stroke:var(' + (v === 0 ? '--axis' : '--hair') + ');stroke-width:1' }, svg);
+      sv('text', { x: m.l - 7, y: y1(v) + 4, 'text-anchor': 'end', text: compact(v), style: 'font-size:11px;' + mut }, svg);
+    });
+    var bw = Math.min(24, band - 2), bars = [];
+    rows.forEach(function (r, i) {
+      var cx = m.l + band * (i + 0.5), base = y1(0), h = base - y1(r.saving);
+      var el = sv('path', { d: roundTop(cx - bw / 2, base, bw, h, 4), style: 'fill:var(' + (r.inPPA ? '--s1' : '--s2') + ')' }, svg);
+      bars.push(el);
+    });
+    function barLabel(i) {
+      var r = rows[i], cx = m.l + band * (i + 0.5), top = r.saving >= 0 ? y1(r.saving) - 5 : y1(r.saving) + 13;
+      var anchor = i === 0 ? 'start' : (i > LIFE - 3 ? 'end' : 'middle');
+      sv('text', { x: anchor === 'start' ? cx - bw / 2 : (anchor === 'end' ? cx + bw / 2 : cx), y: top, 'text-anchor': anchor, text: compact(r.saving), style: 'font-size:11px;font-weight:600;fill:var(--ink)' }, svg);
+    }
+    barLabel(0); if (N < LIFE) barLabel(N);
+
+    // painel 2 - acumulada
+    var cum = a.cumArr;
+    var s2 = niceTicks(Math.min(0, Math.min.apply(null, cum)), Math.max.apply(null, cum) * 1.1, 4);
+    var y2 = function (v) { return T2 + h2 - (v - s2.lo) / (s2.hi - s2.lo) * h2; };
+    var x2 = function (t) { return t === 0 ? m.l : m.l + band * (t - 0.5); };
+    sv('text', { x: m.l, y: T2 - 10, text: 'Poupança acumulada (€)', style: 'font-size:12px;font-weight:600;' + ink2 }, svg);
+    s2.ticks.forEach(function (v) {
+      sv('line', { x1: m.l, x2: W - m.r, y1: y2(v), y2: y2(v), style: 'stroke:var(' + (v === 0 ? '--axis' : '--hair') + ');stroke-width:1' }, svg);
+      sv('text', { x: m.l - 7, y: y2(v) + 4, 'text-anchor': 'end', text: compact(v), style: 'font-size:11px;' + mut }, svg);
+    });
+    [1, 5, 10, 15, 20].forEach(function (t) {
+      sv('text', { x: x2(t), y: T2 + h2 + 17, 'text-anchor': 'middle', text: String(t), style: 'font-size:11px;' + mut }, svg);
+    });
+    sv('text', { x: W - m.r, y: T2 + h2 + 17, 'text-anchor': 'end', text: '', style: 'font-size:11px;' + mut }, svg);
+    function seg(t0, t1, color) {
+      var pts = [], t;
+      for (t = t0; t <= t1; t++) pts.push([x2(t), y2(cum[t])]);
+      var d = pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join('');
+      sv('path', { d: d + 'L' + pts[pts.length - 1][0].toFixed(1) + ' ' + y2(0) + 'L' + pts[0][0].toFixed(1) + ' ' + y2(0) + 'z', style: 'fill:var(' + color + ');opacity:.10' }, svg);
+      sv('path', { d: d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', style: 'stroke:var(' + color + ')' }, svg);
+    }
+    seg(0, N, '--s1'); if (N < LIFE) seg(N, LIFE, '--s2');
+    function dot(t, color) {
+      sv('circle', { cx: x2(t), cy: y2(cum[t]), r: 6, style: 'fill:var(--surface)' }, svg);
+      sv('circle', { cx: x2(t), cy: y2(cum[t]), r: 4, style: 'fill:var(' + color + ')' }, svg);
+    }
+    if (N < LIFE) { dot(N, '--s1'); sv('text', { x: x2(N) + 8, y: y2(cum[N]) + 15, text: compact(cum[N]), style: 'font-size:11px;font-weight:600;fill:var(--ink)' }, svg); }
+    dot(LIFE, N < LIFE ? '--s2' : '--s1');
+    sv('text', { x: x2(LIFE) - 9, y: y2(cum[LIFE]) - 9, 'text-anchor': 'end', text: compact(cum[LIFE]), style: 'font-size:12px;font-weight:650;fill:var(--ink)' }, svg);
+
+    // interação
+    var xh = sv('line', { y1: T1, y2: T2 + h2, style: 'stroke:var(--ink2);stroke-width:1', visibility: 'hidden' }, svg);
+    var hd = sv('circle', { r: 4, style: 'fill:var(--ink)', visibility: 'hidden' }, svg);
+    var hit = sv('rect', { x: m.l, y: 0, width: plotW, height: H, fill: 'transparent' }, svg);
+    var tip = makeTip(host), cur = -1;
+    function show(e) {
+      var rc = svg.getBoundingClientRect(), x = (e.clientX - rc.left) * (W / rc.width);
+      var i = Math.max(0, Math.min(LIFE - 1, Math.floor((x - m.l) / band)));
+      if (e.pointerType !== 'mouse') lastTouchHost = host;
+      if (i !== cur) { if (cur >= 0) bars[cur].style.filter = ''; bars[i].style.filter = 'brightness(1.18)'; cur = i; }
+      var r = rows[i], cx = m.l + band * (i + 0.5);
+      xh.setAttribute('x1', cx); xh.setAttribute('x2', cx); xh.setAttribute('visibility', 'visible');
+      hd.setAttribute('cx', x2(i + 1)); hd.setAttribute('cy', y2(cum[i + 1])); hd.setAttribute('visibility', 'visible');
+      tip.textContent = '';
+      var th = document.createElement('div'); th.className = 'th'; th.textContent = 'Ano ' + r.t + (r.inPPA ? ' · durante o PPA' : ' · sistema do cliente'); tip.appendChild(th);
+      tip.appendChild(tipRow('Poupança do ano', eur(r.saving), r.inPPA ? 'var(--s1)' : 'var(--s2)'));
+      tip.appendChild(tipRow('Acumulada', eur(r.cum), null));
+      var mm = document.createElement('div'); mm.className = 'tm';
+      mm.textContent = 'Custo evitado ' + eur(r.avoided) + (r.payment ? ' · PPA ' + eur(-r.payment) : '') + (r.saleRev ? ' · excedente ' + eur(r.saleRev) : '') + (r.opex ? ' · O&M ' + eur(-r.opex) : '');
+      tip.appendChild(mm);
+      placeTip(tip, host, cx, W);
+    }
+    function hide() { if (cur >= 0) bars[cur].style.filter = ''; cur = -1; xh.setAttribute('visibility', 'hidden'); hd.setAttribute('visibility', 'hidden'); tip.hidden = true; }
+    hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show);
+    hit.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') hide(); });
+
+    $('ppaLegend').innerHTML = '<span><i style="background:var(--s1)"></i>Durante o PPA (anos 1–' + N + ')</span>' +
+      (N < LIFE ? '<span><i style="background:var(--s2)"></i>Depois do PPA (anos ' + (N + 1) + '–' + LIFE + ')</span>' : '');
+    $('ppaChartNote').textContent = N < LIFE ? 'No fim do contrato a tarifa PPA desaparece: o cliente fica com o sistema e a poupança sobe.' : '';
+  }
+
+  /* Gráfico 2: posição acumulada atualizada, EPC (comprar) vs PPA */
+  function renderEPCChart(p, ep, a) {
+    var host = $('chartEpc');
+    var W = Math.max(290, host.clientWidth || 340);
+    var old = host.querySelector('svg'); if (old) old.remove();
+    var m = { l: 46, r: 56 }, plotW = W - m.l - m.r, T = 14, h = 226, H = T + h + 28;
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Posição acumulada atualizada do cliente: compra com EPC contra PPA, ao longo de ' + LIFE + ' anos. Detalhe na tabela abaixo.' });
+    host.insertBefore(svg, host.firstChild);
+    var A = ep.dcum, B = a.dcumArr, all = A.concat(B);
+    var sc = niceTicks(Math.min.apply(null, all), Math.max.apply(null, all) * 1.05, 5);
+    var X = function (t) { return m.l + t / LIFE * plotW; }, Y = function (v) { return T + h - (v - sc.lo) / (sc.hi - sc.lo) * h; };
+    sc.ticks.forEach(function (v) {
+      sv('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), style: 'stroke:var(' + (v === 0 ? '--axis' : '--hair') + ');stroke-width:1' }, svg);
+      sv('text', { x: m.l - 7, y: Y(v) + 4, 'text-anchor': 'end', text: compact(v), style: 'font-size:11px;fill:var(--muted)' }, svg);
+    });
+    [0, 5, 10, 15, 20].forEach(function (t) { sv('text', { x: X(t), y: T + h + 18, 'text-anchor': t === 0 ? 'start' : (t === 20 ? 'end' : 'middle'), text: String(t), style: 'font-size:11px;fill:var(--muted)' }, svg); });
+    function line(arr, color) {
+      var d = arr.map(function (v, t) { return (t ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(v).toFixed(1); }).join('');
+      sv('path', { d: d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', style: 'stroke:var(' + color + ')' }, svg);
+    }
+    line(B, '--s2'); line(A, '--s1');
+    // etiquetas finais só se não colidirem
+    var yA = Y(A[LIFE]), yB = Y(B[LIFE]);
+    if (Math.abs(yA - yB) >= 16) {
+      sv('text', { x: X(LIFE) + 8, y: yA + 4, text: compact(A[LIFE]), style: 'font-size:12px;font-weight:650;fill:var(--ink)' }, svg);
+      sv('text', { x: X(LIFE) + 8, y: yB + 4, text: compact(B[LIFE]), style: 'font-size:12px;font-weight:650;fill:var(--ink)' }, svg);
+    }
+    [[LIFE, A, '--s1'], [LIFE, B, '--s2']].forEach(function (q) {
+      sv('circle', { cx: X(q[0]), cy: Y(q[1][q[0]]), r: 6, style: 'fill:var(--surface)' }, svg);
+      sv('circle', { cx: X(q[0]), cy: Y(q[1][q[0]]), r: 4, style: 'fill:var(' + q[2] + ')' }, svg);
+    });
+    // payback descontado
+    var pb = ep.paybackDisc;
+    if (pb !== null && pb > 0) {
+      var px = X(pb), py = Y(0);
+      sv('line', { x1: px, x2: px, y1: py, y2: T + h, style: 'stroke:var(--ink2);stroke-width:1' }, svg);
+      sv('circle', { cx: px, cy: py, r: 6, style: 'fill:var(--surface)' }, svg);
+      sv('circle', { cx: px, cy: py, r: 4, style: 'fill:var(--s1)' }, svg);
+      var right = px < m.l + plotW * 0.55;
+      sv('text', { x: right ? px + 10 : px - 10, y: right ? py + 20 : py - 12, 'text-anchor': right ? 'start' : 'end', text: 'Payback ' + fx(pb, 1) + ' anos', style: 'font-size:12px;font-weight:650;fill:var(--ink)' }, svg);
+    }
+    // interação
+    var xh = sv('line', { y1: T, y2: T + h, style: 'stroke:var(--ink2);stroke-width:1', visibility: 'hidden' }, svg);
+    var d1 = sv('circle', { r: 4, style: 'fill:var(--s1)', visibility: 'hidden' }, svg), d2 = sv('circle', { r: 4, style: 'fill:var(--s2)', visibility: 'hidden' }, svg);
+    var hit = sv('rect', { x: m.l - 10, y: 0, width: plotW + 20, height: H, fill: 'transparent' }, svg);
+    var tip = makeTip(host);
+    function show(e) {
+      var rc = svg.getBoundingClientRect(), x = (e.clientX - rc.left) * (W / rc.width);
+      var t = Math.max(0, Math.min(LIFE, Math.round((x - m.l) / plotW * LIFE)));
+      if (e.pointerType !== 'mouse') lastTouchHost = host;
+      xh.setAttribute('x1', X(t)); xh.setAttribute('x2', X(t)); xh.setAttribute('visibility', 'visible');
+      d1.setAttribute('cx', X(t)); d1.setAttribute('cy', Y(A[t])); d1.setAttribute('visibility', 'visible');
+      d2.setAttribute('cx', X(t)); d2.setAttribute('cy', Y(B[t])); d2.setAttribute('visibility', 'visible');
+      tip.textContent = '';
+      var th = document.createElement('div'); th.className = 'th'; th.textContent = t === 0 ? 'Ano 0 · investimento' : 'Ano ' + t; tip.appendChild(th);
+      tip.appendChild(tipRow('EPC (compra)', eur(A[t]), 'var(--s1)'));
+      tip.appendChild(tipRow('PPA', eur(B[t]), 'var(--s2)'));
+      placeTip(tip, host, X(t), W);
+    }
+    function hide() { xh.setAttribute('visibility', 'hidden'); d1.setAttribute('visibility', 'hidden'); d2.setAttribute('visibility', 'hidden'); tip.hidden = true; }
+    hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show);
+    hit.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') hide(); });
+
+    $('epcLegend').innerHTML = '<span><i class="ln" style="border-color:var(--s1)"></i>EPC: o cliente compra</span><span><i class="ln" style="border-color:var(--s2)"></i>PPA: sem investimento</span>';
+    $('epcChartNote').textContent = 'Fluxos atualizados a ' + fmt(p.disc, 2) + ' %. O PPA parte de zero; o EPC parte do investimento.';
+  }
+
+  /* redesenhar quando a largura muda */
+  var lastW = 0;
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () {
+      var w = document.getElementById('app').clientWidth;
+      if (w !== lastW) { lastW = w; schedule(); }
+    }).observe(document.getElementById('app'));
+  }
+
+  applyTab(); applyClient(); syncInputs(); update();
+})();
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+</body>
+</html>
